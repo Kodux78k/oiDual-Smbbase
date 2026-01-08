@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Fusion Tool Mobile</title>
+ 
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#020202">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('Service Worker Registered'));
+  }
+</script>
+  
+  <style>
+    /* Reset & Base */
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --bg: #f3f4f6;
+      --card-bg: #ffffff;
+      --text-main: #1f2937;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --radius: 12px;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      padding-bottom: 80px; /* Space for footer */
+    }
+
+    h1 { font-size: 20px; margin: 0 0 4px 0; text-align: center; color: #111827; }
+    p.subtitle { text-align: center; color: var(--text-muted); font-size: 14px; margin: 0 0 24px 0; }
+
+    /* Layout Stacks */
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-weight: 600;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Inputs & Forms */
+    label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+    
+    .file-input-wrapper {
+      position: relative;
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      transition: all 0.2s;
+      background: #f9fafb;
+    }
+    .file-input-wrapper:active { background: #eff6ff; border-color: var(--primary); }
+    .file-input-wrapper input {
+      position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; cursor: pointer;
+    }
+    .file-status { font-size: 13px; color: var(--primary); font-weight: 600; margin-top: 4px; display: block; }
+    .file-label-text { font-size: 14px; color: var(--text-muted); }
+
+    .text-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .text-input:focus { border-color: var(--primary); }
+
+    /* Action Buttons */
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .action-grid.full { grid-template-columns: 1fr; }
+
+    button {
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    button:active { transform: scale(0.98); }
+
+    .btn-primary { background: var(--primary); color: white; width: 100%; font-size: 16px; padding: 14px; }
+    .btn-secondary { background: white; border: 1px solid var(--border); color: var(--text-main); }
+    .btn-secondary:active { background: #f3f4f6; }
+    
+    /* Tabs for Preview */
+    .tabs { display: flex; gap: 4px; margin-bottom: 12px; background: #f3f4f6; padding: 4px; border-radius: 8px; }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 8px;
+      font-size: 13px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-weight: 500;
+      user-select: none;
+    }
+    .tab.active { background: white; color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+
+    /* Iframe & Textarea */
+    .preview-container {
+      position: relative;
+      height: 400px; /* Mobile safe height */
+      background: #fafafa;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    iframe { width: 100%; height: 100%; border: none; background: white; }
+    
+    textarea {
+      width: 100%;
+      height: 150px;
+      font-family: monospace;
+      font-size: 11px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      resize: vertical;
+      background: #f9fafb;
+    }
+
+    .hidden { display: none !important; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #333; color: white; padding: 10px 20px; border-radius: 20px;
+      font-size: 14px; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+      z-index: 100;
+    }
+    .toast.show { opacity: 1; }
+
+  </style>
+</head>
+<body>
+
+  <h1>HTML Fusion</h1>
+  <p class="subtitle">Ferramenta de Merge Mobile</p>
+
+  <div class="stack">
+    
+    <!-- STACK 1: UPLOADS -->
+    <div class="card">
+      <div class="card-title">1. Arquivos</div>
+      
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <!-- Upload Pai -->
+        <div>
+          <label>HTML Pai (Base)</label>
+          <div class="file-input-wrapper">
+            <span class="file-label-text">Toque para selecionar</span>
+            <span id="label-parent" class="file-status hidden">Arquivo Selecionado ✓</span>
+            <input id="file-parent" type="file" accept=".html,.htm" />
+          </div>
+        </div>
+
+        <!-- Upload Filho -->
+        <div>
+          <label>HTML Filho (Conteúdo)</label>
+          <div class="file-input-wrapper">
+            <span class="file-label-text">Toque para selecionar</span>
+            <span id="label-child" class="file-status hidden">Arquivo Selecionado ✓</span>
+            <input id="file-child" type="file" accept=".html,.htm" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STACK 2: CONFIG & ACTION -->
+    <div class="card">
+      <div class="card-title">2. Injeção</div>
+      
+      <div style="margin-bottom: 16px;">
+        <label>Seletor CSS (Onde injetar)</label>
+        <input id="inject-selector" class="text-input" placeholder="#inject-here, .content, ou body" />
+        <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">Se vazio, injeta no final do body.</div>
+      </div>
+
+      <button id="btn-merge" class="btn-primary">
+        <span>⚡ Fazer Merge & Visualizar</span>
+      </button>
+    </div>
+
+    <!-- STACK 3: PREVIEWER -->
+    <div class="card">
+      <div class="card-title">
+        <span>3. Visualização</span>
+        <button id="btn-copy-html" style="font-size:10px; padding:4px 8px; height:auto;" class="btn-secondary">Copiar HTML</button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab active" data-target="view-merged">Resultado</div>
+        <div class="tab" data-target="view-parent">Pai</div>
+        <div class="tab" data-target="view-child">Filho</div>
+      </div>
+
+      <!-- Views -->
+      <div id="view-merged" class="preview-container">
+        <iframe id="iframe-merged" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
+      </div>
+      <div id="view-parent" class="preview-container hidden">
+        <iframe id="iframe-parent" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
+      </div>
+      <div id="view-child" class="preview-container hidden">
+        <iframe id="iframe-child" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
+      </div>
+    </div>
+
+    <!-- STACK 4: EXTRAS -->
+    <div class="card">
+      <div class="card-title">Opções Extras</div>
+      <div class="action-grid">
+        <button id="btn-download" class="btn-secondary">Download .html</button>
+        <button id="btn-copy-snippet" class="btn-secondary">Copiar JS Snippet</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="toast" class="toast">Mensagem aqui</div>
+
+<script>
+  // --- UI Helpers ---
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // Tab Switching Logic
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      // Remove active from all tabs
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      // Hide all views
+      ['view-merged', 'view-parent', 'view-child'].forEach(id => document.getElementById(id).classList.add('hidden'));
+      
+      // Activate clicked
+      t.classList.add('active');
+      const targetId = t.getAttribute('data-target');
+      document.getElementById(targetId).classList.remove('hidden');
+    });
+  });
+
+  // --- Logic Core (Same as before, adapted for UI) ---
+  function readFileAsText(file){
+    return new Promise((res,reject)=>{
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result);
+      fr.onerror = reject;
+      fr.readAsText(file);
+    });
+  }
+
+  // DOM Elements
+  const fileParent = document.getElementById('file-parent');
+  const fileChild = document.getElementById('file-child');
+  const labelParent = document.getElementById('label-parent');
+  const labelChild = document.getElementById('label-child');
+  
+  const iframeMerged = document.getElementById('iframe-merged');
+  const iframeParent = document.getElementById('iframe-parent');
+  const iframeChild = document.getElementById('iframe-child');
+  const injectSelectorInput = document.getElementById('inject-selector');
+
+  let parentHtml = '';
+  let childHtml = '';
+  let mergedHtml = '';
+
+  // File Inputs UI Update
+  fileParent.addEventListener('change', async (e)=>{
+    if(!e.target.files[0]) return;
+    parentHtml = await readFileAsText(e.target.files[0]);
+    labelParent.textContent = e.target.files[0].name;
+    labelParent.classList.remove('hidden');
+    // Auto preview raw
+    iframeParent.srcdoc = parentHtml;
+  });
+
+  fileChild.addEventListener('change', async (e)=>{
+    if(!e.target.files[0]) return;
+    childHtml = await readFileAsText(e.target.files[0]);
+    labelChild.textContent = e.target.files[0].name;
+    labelChild.classList.remove('hidden');
+    // Auto preview raw
+    iframeChild.srcdoc = childHtml;
+  });
+
+  function mergeHtmlStrings(parentStr, childStr, injectSelector){
+    const pDoc = new DOMParser().parseFromString(parentStr, 'text/html');
+    const cDoc = new DOMParser().parseFromString(childStr, 'text/html');
+
+    // 1. Merge Head (Styles/Links)
+    const existingLinks = Array.from(pDoc.head.querySelectorAll('link')).map(l=>l.href);
+    const existingStyles = Array.from(pDoc.head.querySelectorAll('style')).map(s => s.textContent.trim());
+
+    Array.from(cDoc.head.children).forEach(node=>{
+      const tagName = node.tagName.toLowerCase();
+      if(tagName === 'link' && node.href){
+        if(!existingLinks.includes(node.href)) pDoc.head.appendChild(node.cloneNode(true));
+      } else if(tagName === 'style'){
+        if(!existingStyles.includes(node.textContent.trim())) {
+           const n = pDoc.createElement('style');
+           n.textContent = node.textContent;
+           pDoc.head.appendChild(n);
+        }
+      } else if (tagName !== 'script' && tagName !== 'title') {
+         // Copy other meta tags
+         pDoc.head.appendChild(node.cloneNode(true));
+      }
+    });
+
+    // 2. Prepare Body Injection
+    const frag = pDoc.createDocumentFragment();
+    Array.from(cDoc.body.childNodes).forEach(n => frag.appendChild(pDoc.importNode(n, true)));
+
+    // 3. Find Target
+    let target = null;
+    if(injectSelector){
+      try { target = pDoc.querySelector(injectSelector); } catch(e){}
+    }
+    if(!target) target = pDoc.getElementById('inject-here') || pDoc.body;
+
+    target.appendChild(frag);
+
+    // 4. Handle Scripts (Move to body end to ensure execution)
+    const childScripts = Array.from(cDoc.querySelectorAll('script'));
+    childScripts.forEach(s=>{
+      const newS = pDoc.createElement('script');
+      for(const attr of s.attributes) newS.setAttribute(attr.name, attr.value);
+      newS.textContent = s.textContent;
+      pDoc.body.appendChild(newS);
+    });
+
+    return '<!doctype html>\n' + pDoc.documentElement.outerHTML;
+  }
+
+  // Action: Merge
+  document.getElementById('btn-merge').addEventListener('click', ()=>{
+    if(!parentHtml || !childHtml){
+      showToast('⚠️ Selecione os dois arquivos primeiro.');
+      return;
+    }
+    const selector = injectSelectorInput.value.trim();
+    mergedHtml = mergeHtmlStrings(parentHtml, childHtml, selector);
+    
+    // Update iframe
+    iframeMerged.srcdoc = mergedHtml;
+    
+    // Switch tab to merged automatically
+    document.querySelector('.tab[data-target="view-merged"]').click();
+    showToast('✅ Merge realizado com sucesso!');
+  });
+
+  // Action: Download
+  document.getElementById('btn-download').addEventListener('click', ()=>{
+    if(!mergedHtml){ showToast('⚠️ Gere o merge primeiro.'); return; }
+    const blob = new Blob([mergedHtml], {type:'text/html;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'merged.html';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  // Action: Copy HTML
+  document.getElementById('btn-copy-html').addEventListener('click', ()=>{
+    if(!mergedHtml){ showToast('⚠️ Gere o merge primeiro.'); return; }
+    navigator.clipboard.writeText(mergedHtml)
+      .then(()=> showToast('📋 HTML copiado!'))
+      .catch(()=> showToast('❌ Erro ao copiar.'));
+  });
+
+  // Action: Copy JS Snippet
+  document.getElementById('btn-copy-snippet').addEventListener('click', ()=>{
+    const snippet = `(function(h,s='#inject-here'){const p=new DOMParser(),c=p.parseFromString(h,'text/html'),f=document.createDocumentFragment(),t=document.querySelector(s)||document.body;Array.from(c.body.childNodes).forEach(n=>f.appendChild(document.importNode(n,true)));t.appendChild(f);Array.from(c.querySelectorAll('script')).forEach(x=>{const n=document.createElement('script');for(const a of x.attributes)n.setAttribute(a.name,a.value);n.textContent=x.textContent;document.body.appendChild(n)})})(\`Cole_Conteudo_HTML_Filho_Aqui\`);`;
+    navigator.clipboard.writeText(snippet)
+      .then(()=> showToast('📋 Snippet JS copiado!'))
+      .catch(()=> showToast('❌ Erro ao copiar.'));
+  });
+
+</script>
+</body>
+</html>
